@@ -428,12 +428,24 @@ class ErrorsTest(TestCase):
                 'message': NotFound.description
             })
 
-    def test_error_router_falls_back_to_original(self):
-        api = restplus.Api(self.app)
-        self.app.handle_exception = Mock()
-        api.handle_error = Mock(side_effect=Exception())
-        api._has_fr_route = Mock(return_value=True)
-        exception = Mock(spec=HTTPException)
+    def test_handle_not_include_error_message(self, app):
+        app.config['ERROR_INCLUDE_MESSAGE'] = False
+
+        api = restplus.Api(app)
+        view = restplus.Resource
+
+        api.add_resource(view, '/foo', endpoint='bor')
+
+        with app.test_request_context("/faaaaa"):
+            response = api.handle_error(NotFound())
+            assert 'message' not in json.loads(response.data.decode())
+
+    def test_error_router_falls_back_to_original(self, app, mocker):
+        api = restplus.Api(app)
+        app.handle_exception = mocker.Mock()
+        api.handle_error = mocker.Mock(side_effect=Exception())
+        api._has_fr_route = mocker.Mock(return_value=True)
+        exception = mocker.Mock(spec=HTTPException)
 
         with self.app.test_request_context('/foo'):
             api.error_router(self.app.handle_exception, exception)
