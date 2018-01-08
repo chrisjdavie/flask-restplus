@@ -566,7 +566,7 @@ class Api(object):
         '''
         got_request_exception.send(current_app._get_current_object(), exception=e)
 
-        include_message_in_error = current_app.config.get("ERROR_INCLUDE_MESSAGE", True)
+        include_message_in_response = current_app.config.get("ERROR_INCLUDE_MESSAGE", True)
         default_data = {}
 
         headers = Headers()
@@ -576,7 +576,7 @@ class Api(object):
             default_data, code, headers = unpack(result, 500)
         elif isinstance(e, HTTPException):
             code = e.code
-            if include_message_in_error:
+            if include_message_in_response:
                 default_data = {
                     'message': getattr(e, 'description', HTTP_STATUS_CODES.get(code, ''))
                 }
@@ -586,12 +586,12 @@ class Api(object):
             default_data, code, headers = unpack(result, 500)
         else:
             code = 500
-            if include_message_in_error:
+            if include_message_in_response:
                 default_data = {
                     'message': HTTP_STATUS_CODES.get(code, str(e)),
                 }
 
-        if include_message_in_error:
+        if include_message_in_response:
             default_data['message'] = default_data.get('message', str(e))
 
         data = getattr(e, 'data', default_data)
@@ -604,7 +604,7 @@ class Api(object):
             current_app.log_exception(exc_info)
 
         elif code == 404 and current_app.config.get("ERROR_404_HELP", True) \
-                and include_message_in_error:
+                and include_message_in_response:
             data['message'] = self._help_on_404(data.get('message', None))
 
         elif code == 406 and self.default_mediatype is None:
