@@ -566,6 +566,9 @@ class Api(object):
         '''
         got_request_exception.send(current_app._get_current_object(), exception=e)
 
+        include_message_in_error = current_app.config.get("ERROR_INCLUDE_MESSAGE", True)
+        default_data = {}
+
         headers = Headers()
         if e.__class__ in self.error_handlers:
             handler = self.error_handlers[e.__class__]
@@ -573,20 +576,23 @@ class Api(object):
             default_data, code, headers = unpack(result, 500)
         elif isinstance(e, HTTPException):
             code = e.code
-            default_data = {
-                'message': getattr(e, 'description', HTTP_STATUS_CODES.get(code, ''))
-            }
+            if include_message_in_error:
+                default_data = {
+                    'message': getattr(e, 'description', HTTP_STATUS_CODES.get(code, ''))
+                }
             headers = e.get_response().headers
         elif self._default_error_handler:
             result = self._default_error_handler(e)
             default_data, code, headers = unpack(result, 500)
         else:
             code = 500
-            default_data = {
-                'message': HTTP_STATUS_CODES.get(code, str(e)),
-            }
+            if include_message_in_error:
+                default_data = {
+                    'message': HTTP_STATUS_CODES.get(code, str(e)),
+                }
 
-        default_data['message'] = default_data.get('message', str(e))
+        if include_message_in_error:
+            default_data['message'] = default_data.get('message', str(e))
 
         data = getattr(e, 'data', default_data)
         fallback_mediatype = None
@@ -597,7 +603,8 @@ class Api(object):
                 exc_info = None
             current_app.log_exception(exc_info)
 
-        elif code == 404 and current_app.config.get("ERROR_404_HELP", True):
+        elif code == 404 and current_app.config.get("ERROR_404_HELP", True) \
+                and include_message_in_error:
             data['message'] = self._help_on_404(data.get('message', None))
 
         elif code == 406 and self.default_mediatype is None:
@@ -611,9 +618,6 @@ class Api(object):
         # Remove blacklisted headers
         for header in HEADERS_BLACKLIST:
             headers.pop(header, None)
-
-        if not current_app.config.get("ERROR_INCLUDE_MESSAGE", True):
-            del data['message']
 
         resp = self.make_response(data, code, headers, fallback_mediatype=fallback_mediatype)
 
