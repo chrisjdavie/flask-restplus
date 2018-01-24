@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from flask import Blueprint, redirect, views, abort as flask_abort
 from flask.signals import got_request_exception, signals_available
 import flask
-from werkzeug.exceptions import HTTPException, Unauthorized, BadRequest, NotFound
+from werkzeug.exceptions import HTTPException, Unauthorized, BadRequest, NotFound, Aborter
 from werkzeug.http import quote_etag, unquote_etag
 
 import flask_restplus as restplus
@@ -726,17 +726,17 @@ class APITestCase(TestCase):
                 """Get a list of headers."""
                 return [('ETag', self.etag)]
 
+        custom_abort = Aborter(mapping={304: NotModified})
+
         class Foo1(restplus.Resource):
             def get(self):
-                flask_abort(304, etag='myETag')
+                custom_abort(304, etag='myETag')
 
         api.add_resource(Foo1, '/foo')
-        flask_abort.mapping.update({304: NotModified})
-
+        
         with self.app.test_client() as client:
             foo = client.get('/foo')
-            self.assertEqual(foo.get_etag(),
-                             unquote_etag(quote_etag('myETag')))
+            assert foo.get_etag() == unquote_etag(quote_etag('myETag'))
 
     def test_exception_header_forwarding_doesnt_duplicate_headers(self):
         """Test that HTTPException's headers do not add a duplicate
