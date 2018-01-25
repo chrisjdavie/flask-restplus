@@ -11,7 +11,7 @@ env/
 bin/
 build/
 develop-eggs/
-dist/
+# dist/
 eggs/
 lib/
 lib64/
@@ -57,4 +57,4 @@ coverage.xml
 doc/_build/
 
 # Specifics
-flask_restplus/static/bower
+# flask_restplus/static/bower
