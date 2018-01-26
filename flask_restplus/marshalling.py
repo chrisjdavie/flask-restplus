@@ -10,7 +10,7 @@ from .mask import Mask, apply as apply_mask
 from .utils import unpack
 
 
-def marshal(data, fields, envelope=None, mask=None):
+def marshal(data, fields, envelope=None, skip_none=False, mask=None):
     """Takes raw data (in the form of a dict, list, object) and a dict of
     fields to output and filters the data based on those fields.
 
@@ -19,6 +19,9 @@ def marshal(data, fields, envelope=None, mask=None):
                    response output
     :param envelope: optional key that will be used to envelop the serialized
                      response
+    :param bool skip_none: optional key will be used to eliminate fields
+                           which value is None or the field's key not
+                           exist in data
 
 
     >>> from flask_restplus import fields, marshal
@@ -30,6 +33,9 @@ def marshal(data, fields, envelope=None, mask=None):
 
     >>> marshal(data, mfields, envelope='data')
     OrderedDict([('data', OrderedDict([('a', 100)]))])
+
+    >>> marshal(data, mfields, skip_none=True)
+    OrderedDict([('a', 100)])
 
     """
 
@@ -44,14 +50,17 @@ def marshal(data, fields, envelope=None, mask=None):
         fields = apply_mask(fields, mask, skip=True)
 
     if isinstance(data, (list, tuple)):
-        out = [marshal(d, fields) for d in data]
+        out = [marshal(d, fields, skip_none=skip_none) for d in data]
         if envelope:
             out = OrderedDict([(envelope, out)])
         return out
 
-    items = ((k, marshal(data, v) if isinstance(v, dict)
+    items = ((k, marshal(data, v, skip_none=skip_none) if isinstance(v, dict)
               else make(v).output(k, data))
              for k, v in fields.items())
+
+    if skip_none:
+        items = ((k, v) for k, v in items if v is not None and v != OrderedDict())
 
     out = OrderedDict(items)
 
